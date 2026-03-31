@@ -1,0 +1,4 @@
+{
+  "name": "ThriftLLM",
+  "description": "Self-hosted LLM Proxy with Semantic Caching"
+}

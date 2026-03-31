@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-thriftllm}
+      POSTGRES_USER: ${POSTGRES_USER:-thrift}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-thriftllm_secret_password}
+    # ports:
+    #   - "5432:5432"  # Uncomment for local development
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-thrift}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis/redis-stack:latest
+    restart: unless-stopped
+    # ports:
+    #   - "6379:6379"  # Uncomment for local development
+    #   - "8001:8001"  # RedisInsight web UI
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://thrift:thriftllm_secret_password@postgres:5432/thriftllm?sslmode=disable}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      THRIFT_JWT_SECRET: ${THRIFT_JWT_SECRET:-change-me-to-a-strong-random-secret}
+      THRIFT_ENCRYPTION_KEY: ${THRIFT_ENCRYPTION_KEY:-change-me-to-a-random-32-byte-hex-string}
+      THRIFT_CACHE_THRESHOLD: ${THRIFT_CACHE_THRESHOLD:-0.95}
+      THRIFT_CACHE_TTL: ${THRIFT_CACHE_TTL:-24h}
+      # Provider API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      TOGETHER_API_KEY: ${TOGETHER_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      BACKEND_URL: http://backend:8080
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:

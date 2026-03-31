@@ -1,0 +1,28 @@
+# Env
+.env
+.dockerenv
+
+# Go
+backend/tmp/
+backend/bin/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# Docker
+pgdata/
+redisdata/
+
+# IDE
+.vscode/
+.idea/
+
+# ONNX model (large binary, download at build)
+backend/onnx/*.onnx
